@@ -5,26 +5,32 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
-using Projektverwaltung.ViewModels;
+using Projektverwaltung.Data;
+using Projektverwaltung.Models;
 
 namespace Projektverwaltung
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+        }
+
+        private void BtnProjects_Click(object sender, RoutedEventArgs e)
+        {
+            var projectWindow = new ProjectWindow();
+            projectWindow.Show();
+            this.Close(); // Close the MainWindow
+        }
+
+        private void BtnEmployees_Click(object sender, RoutedEventArgs e)
+        {
+            var employeeWindow = new EmployeeWindow();
+            employeeWindow.Show();
+            this.Close(); // Close the MainWindow
         }
     }
 }

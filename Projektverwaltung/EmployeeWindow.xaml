@@ -1,0 +1,23 @@
+<Window x:Class="Projektverwaltung.EmployeeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mitarbeiterliste" Width="800" Height="600">
+	<Grid>
+		<!-- Employee DataGrid -->
+		<DataGrid Name="GridEmployees" AutoGenerateColumns="False" Margin="10,50,10,10" SelectionMode="Single" CanUserAddRows="False">
+			<DataGrid.Columns>
+				<DataGridTextColumn Header="Name" Binding="{Binding LastName}" Width="200"/>
+				<DataGridTextColumn Header="Vorname" Binding="{Binding FirstName}" Width="200"/>
+				<DataGridTextColumn Header="Abteilung" Binding="{Binding Department}" Width="150"/>
+				<DataGridTextColumn Header="Telefon" Binding="{Binding Phone}" Width="150"/>
+			</DataGrid.Columns>
+		</DataGrid>
+
+		<!-- Buttons for Employee Actions -->
+		<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="10">
+			<Button Content="Neu" Width="80" Click="NewEmployee_Click"/>
+			<Button Content="Ändern" Width="80" Click="EditEmployee_Click" Margin="10,0"/>
+			<Button Content="Löschen" Width="80" Click="DeleteEmployee_Click"/>
+		</StackPanel>
+	</Grid>
+</Window>
