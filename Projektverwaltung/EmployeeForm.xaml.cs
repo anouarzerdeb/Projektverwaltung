@@ -1,64 +1,65 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Windows;
 using Projektverwaltung.Data;
 using Projektverwaltung.Models;
-using System.Windows;
 
 namespace Projektverwaltung
 {
     public partial class EmployeeForm : Window
     {
         private readonly Db _db = new Db();
-        private Employee _employee;
+        private Employee _employee; // null = new
 
         public EmployeeForm()
         {
             InitializeComponent();
         }
 
-        // Constructor for editing an existing employee
-        public EmployeeForm(Employee employee) : this()
+        public EmployeeForm(Employee existing) : this()
         {
-            _employee = employee;
-            TxtFirstName.Text = _employee.FirstName;
-            TxtLastName.Text = _employee.LastName;
-            TxtDepartment.Text = _employee.Department;
-            TxtPhone.Text = _employee.Phone;
+            _employee = existing;
+            // pre-fill fields
+            TxtFirstName.Text = existing.FirstName;
+            TxtLastName.Text = existing.LastName;
+            TxtDepartment.Text = existing.Department;
+            TxtPhone.Text = existing.Phone;
+            TxtEmail.Text = existing.Email;
         }
 
-        // Save the employee details
         private void SaveEmployee_Click(object sender, RoutedEventArgs e)
         {
-            if (_employee == null) // Adding a new employee
+            if (string.IsNullOrWhiteSpace(TxtFirstName.Text) || string.IsNullOrWhiteSpace(TxtLastName.Text))
             {
-                _employee = new Employee
+                MessageBox.Show("Vorname und Nachname sind Pflicht.", "Hinweis",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_employee == null)
+            {
+                var e1 = new Employee
                 {
-                    FirstName = TxtFirstName.Text,
-                    LastName = TxtLastName.Text,
-                    Department = TxtDepartment.Text,
-                    Phone = TxtPhone.Text
+                    FirstName = TxtFirstName.Text.Trim(),
+                    LastName = TxtLastName.Text.Trim(),
+                    Department = TxtDepartment.Text.Trim(),
+                    Phone = TxtPhone.Text.Trim(),
+                    Email = TxtEmail.Text.Trim()
                 };
-                _db.AddEmployee(_employee); // Add new employee to the database
+                e1.EmployeeId = _db.AddEmployee(e1);
             }
-            else // Editing an existing employee
+            else
             {
-                _employee.FirstName = TxtFirstName.Text;
-                _employee.LastName = TxtLastName.Text;
-                _employee.Department = TxtDepartment.Text;
-                _employee.Phone = TxtPhone.Text;
-                _db.UpdateEmployee(_employee); // Update the existing employee in the database
+                _employee.FirstName = TxtFirstName.Text.Trim();
+                _employee.LastName = TxtLastName.Text.Trim();
+                _employee.Department = TxtDepartment.Text.Trim();
+                _employee.Phone = TxtPhone.Text.Trim();
+                _employee.Email = TxtEmail.Text.Trim();
+                _db.UpdateEmployee(_employee);
             }
 
-            Close(); // Close the form
-        }
-
-        // Cancel and close the form
-        private void Cancel_Click(object sender, RoutedEventArgs e)
-        {
+            DialogResult = true;
             Close();
         }
+
+        private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
     }
 }
