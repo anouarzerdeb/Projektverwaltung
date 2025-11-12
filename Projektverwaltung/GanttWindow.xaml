@@ -1,8 +1,50 @@
 <Window x:Class="Projektverwaltung.GanttWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Gantt-Diagramm" Width="800" Height="600">
-    <Grid>
-        <Canvas Name="GanttCanvas" Background="#FFF9F9F9" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-    </Grid>
+        Title="Gantt" Width="1000" Height="600"
+        WindowStartupLocation="CenterOwner"
+        Background="#F6F8FB">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="AxisBrush" Color="#666"/>
+        <SolidColorBrush x:Key="GridBrush" Color="#E6EBF2"/>
+        <SolidColorBrush x:Key="StrokeBrush" Color="#222"/>
+
+        <!-- dezente Schraffur -->
+        <DrawingBrush x:Key="HatchBrush" TileMode="Tile"
+                      ViewportUnits="Absolute" Viewport="0,0,8,8">
+            <DrawingBrush.Drawing>
+                <GeometryDrawing Brush="#40FFFFFF">
+                    <GeometryDrawing.Pen>
+                        <Pen Thickness="1" Brush="#50000000"/>
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <LineGeometry StartPoint="0,8" EndPoint="8,0"/>
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+    </Window.Resources>
+
+    <DockPanel Margin="10">
+        <!-- Toolbar -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Width="140" Height="30" Margin="0,0,8,0" Click="ExportPng_Click">Als PNG speichern</Button>
+            <TextBlock x:Name="LblInfo" VerticalAlignment="Center" Foreground="#444"/>
+        </StackPanel>
+
+        <!-- Zeichenflaeche -->
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <!-- linke Phasen-Beschriftung -->
+                <Canvas x:Name="Labels" Margin="0,40,0,0"/>
+                <!-- Zeitachse oben -->
+                <Canvas x:Name="Axis" Height="40" VerticalAlignment="Top" Margin="160,0,0,0"/>
+                <!-- Chartbereich -->
+                <Canvas x:Name="Chart" Margin="160,40,0,0" />
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
 </Window>

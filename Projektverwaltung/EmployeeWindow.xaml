@@ -54,19 +54,19 @@
     <DockPanel Margin="14">
         <!-- Toolbar -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10" Height="50">
-            <Button Style="{StaticResource ToolbarButton}" Click="NewEmployee_Click" Width="100">
+            <Button Style="{StaticResource ToolbarButton}" Click="NewEmployee_Click" Width="120">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource Glyph}" Text="&#xE710;"/>
                     <TextBlock Text="Neu" FontSize="18"/>
                 </StackPanel>
             </Button>
-            <Button Style="{StaticResource ToolbarButton}" Click="EditEmployee_Click" Name="BtnEdit" IsEnabled="False" Width="100">
+            <Button Style="{StaticResource ToolbarButton}" Click="EditEmployee_Click" Name="BtnEdit" IsEnabled="False" Width="120">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource Glyph}" Text="&#xE70F;"/>
                     <TextBlock Text="Ändern" FontSize="18"/>
                 </StackPanel>
             </Button>
-            <Button Style="{StaticResource ToolbarButton}" Click="DeleteEmployee_Click" Name="BtnDelete" IsEnabled="False"  Width="100">
+            <Button Style="{StaticResource ToolbarButton}" Click="DeleteEmployee_Click" Name="BtnDelete" IsEnabled="False"  Width="120">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;"/>
                     <TextBlock Text="Löschen" FontSize="18"/>

@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Windows;
+using System.Windows.Controls;
 using Projektverwaltung.Data;
 using Projektverwaltung.Models;
-using System.Windows;
 
 namespace Projektverwaltung
 {
@@ -20,51 +16,63 @@ namespace Projektverwaltung
             LoadProjects();
         }
 
-        // Load projects into the DataGrid
         private void LoadProjects()
         {
-            GridProjects.ItemsSource = _db.GetProjects(); // Fetch projects from the database
+            GridProjects.ItemsSource = _db.GetProjects();
+            _selectedProject = null;
+            BtnEdit.IsEnabled = BtnDelete.IsEnabled = BtnGantt.IsEnabled = false;
         }
 
-        // Event handler for the "Neu" button (new project)
+        private void GridProjects_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _selectedProject = GridProjects.SelectedItem as Project;
+            bool has = _selectedProject != null;
+            BtnEdit.IsEnabled = BtnDelete.IsEnabled = BtnGantt.IsEnabled = has;
+        }
+
+        private void GridProjects_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_selectedProject != null) EditProject_Click(sender, e);
+        }
+
         private void NewProject_Click(object sender, RoutedEventArgs e)
         {
-            var projectForm = new ProjectForm(); // Open a form to add a new project
-            projectForm.ShowDialog();
-            LoadProjects(); // Refresh the list after adding a new project
+            var f = new ProjectForm();
+            f.Owner = this;
+            f.ShowDialog();
+            LoadProjects();
         }
 
-        // Event handler for the "Ändern" button (edit project)
         private void EditProject_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedProject == null) return; // If no project is selected, return
-
-            var projectForm = new ProjectForm(_selectedProject); // Open the form to edit the selected project
-            projectForm.ShowDialog();
-            LoadProjects(); // Refresh the list after editing the project
+            if (_selectedProject == null) return;
+            var f = new ProjectForm(_selectedProject);
+            f.Owner = this;
+            f.ShowDialog();
+            LoadProjects();
         }
 
-        // Event handler for the "Löschen" button (delete project)
         private void DeleteProject_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedProject == null) return; // If no project is selected, return
+            if (_selectedProject == null) return;
 
-            _db.DeleteProject(_selectedProject.ProjectId); // Delete the project from the database
-            LoadProjects(); // Refresh the list after deleting the project
+            var r = MessageBox.Show(
+                $"Projekt „{_selectedProject.Name}“ wirklich löschen? (Phasen werden mitgelöscht)",
+                "Bestätigen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (r == MessageBoxResult.Yes)
+            {
+                _db.DeleteProject(_selectedProject.ProjectId);
+                LoadProjects();
+            }
         }
 
-        // Event handler for the "Gantt-Diagramm" button (show Gantt chart)
         private void ShowGantt_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedProject == null) return;
-            var ganttWindow = new GanttWindow(_selectedProject);
-            ganttWindow.Show();
-        }
-
-        // Event handler for when a row in the DataGrid is selected
-        private void GridProjects_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-        {
-            _selectedProject = GridProjects.SelectedItem as Project; // Get the selected project
+            var gantt = new GanttWindow(_selectedProject);
+            gantt.Owner = this;
+            gantt.Show();
         }
     }
 }

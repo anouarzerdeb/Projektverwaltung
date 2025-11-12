@@ -7,17 +7,20 @@ namespace Projektverwaltung
     public partial class EmployeeForm : Window
     {
         private readonly Db _db = new Db();
-        private Employee _employee; // null = new
+        private readonly Employee _editing; // null => Neu
 
         public EmployeeForm()
         {
             InitializeComponent();
+            Title = "Mitarbeiter anlegen";
         }
 
         public EmployeeForm(Employee existing) : this()
         {
-            _employee = existing;
-            // pre-fill fields
+            _editing = existing;
+            Title = "Mitarbeiter ändern";
+
+            // Felder füllen
             TxtFirstName.Text = existing.FirstName;
             TxtLastName.Text = existing.LastName;
             TxtDepartment.Text = existing.Department;
@@ -27,16 +30,18 @@ namespace Projektverwaltung
 
         private void SaveEmployee_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(TxtFirstName.Text) || string.IsNullOrWhiteSpace(TxtLastName.Text))
+            // einfache Pflichtfeldprüfung
+            if (string.IsNullOrWhiteSpace(TxtFirstName.Text) ||
+                string.IsNullOrWhiteSpace(TxtLastName.Text))
             {
-                MessageBox.Show("Vorname und Nachname sind Pflicht.", "Hinweis",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Vorname und Nachname sind Pflichtfelder.",
+                    "Eingabe prüfen", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            if (_employee == null)
+            if (_editing == null)
             {
-                var e1 = new Employee
+                var eNew = new Employee
                 {
                     FirstName = TxtFirstName.Text.Trim(),
                     LastName = TxtLastName.Text.Trim(),
@@ -44,22 +49,26 @@ namespace Projektverwaltung
                     Phone = TxtPhone.Text.Trim(),
                     Email = TxtEmail.Text.Trim()
                 };
-                e1.EmployeeId = _db.AddEmployee(e1);
+                _db.AddEmployee(eNew);
             }
             else
             {
-                _employee.FirstName = TxtFirstName.Text.Trim();
-                _employee.LastName = TxtLastName.Text.Trim();
-                _employee.Department = TxtDepartment.Text.Trim();
-                _employee.Phone = TxtPhone.Text.Trim();
-                _employee.Email = TxtEmail.Text.Trim();
-                _db.UpdateEmployee(_employee);
+                _editing.FirstName = TxtFirstName.Text.Trim();
+                _editing.LastName = TxtLastName.Text.Trim();
+                _editing.Department = TxtDepartment.Text.Trim();
+                _editing.Phone = TxtPhone.Text.Trim();
+                _editing.Email = TxtEmail.Text.Trim();
+
+                _db.UpdateEmployee(_editing);
             }
 
             DialogResult = true;
             Close();
         }
 
-        private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
+        private void Cancel_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
     }
 }

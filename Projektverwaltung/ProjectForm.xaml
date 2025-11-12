@@ -1,28 +1,198 @@
 <Window x:Class="Projektverwaltung.ProjectForm"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Projekt bearbeiten" Width="400" Height="350">
-    <Grid>
-        <!-- Project Name -->
-        <TextBlock Text="Projektbezeichnung" Margin="10,10,10,0"/>
-        <TextBox Name="TxtName" Margin="10,30,10,0"/>
+        Title="Projekt"
+        Width="900" Height="640"
+        WindowStartupLocation="CenterOwner"
+        Background="#F6F8FB">
 
-        <!-- Start Date -->
-        <TextBlock Text="Startdatum" Margin="10,70,10,0"/>
-        <DatePicker Name="TxtStartDate" Margin="10,90,10,0"/>
+    <!-- Styles wie in Employee-Views -->
+    <Window.Resources>
+        <SolidColorBrush x:Key="TextBrush" Color="#1A1A1A"/>
+        <SolidColorBrush x:Key="Card" Color="White"/>
+        <SolidColorBrush x:Key="ToolbarBg" Color="#EEF2F7"/>
+        <SolidColorBrush x:Key="ToolbarHover" Color="#E2E8F2"/>
+        <SolidColorBrush x:Key="ToolbarBorder" Color="#D7DEEA"/>
 
-        <!-- End Date -->
-        <TextBlock Text="Enddatum" Margin="10,130,10,0"/>
-        <DatePicker Name="TxtEndDate" Margin="10,150,10,0"/>
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="{StaticResource ToolbarBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ToolbarBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ToolbarHover}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
-        <!-- Project Owner (Employee) -->
-        <TextBlock Text="Verantwortlicher" Margin="10,190,10,0"/>
-        <ComboBox Name="CmbOwner" Margin="10,210,10,0" DisplayMemberPath="LastName" SelectedValuePath="EmployeeId"/>
+        <Style x:Key="Glyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
 
-        <!-- Buttons -->
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="10">
-            <Button Content="Speichern" Width="80" Click="SaveProject_Click"/>
-            <Button Content="Abbrechen" Width="80" Click="Cancel_Click" Margin="10,0"/>
+    <DockPanel Margin="14">
+        <StackPanel Orientation="Vertical" >
+
+            <!-- Abschnitt: Projekt-Stammdaten -->
+            <Border Background="{StaticResource Card}" BorderBrush="#D7DEEA" BorderThickness="1"
+                    CornerRadius="8" Padding="16" >
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="140"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Bezeichnung*" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TxtName" Grid.Row="0" Grid.Column="1" Margin="6" />
+
+                    <TextBlock Text="Startdatum*" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                    <DatePicker x:Name="TxtStartDate" Grid.Row="1" Grid.Column="1" Margin="6"/>
+
+                    <TextBlock Text="Enddatum*" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
+                    <DatePicker x:Name="TxtEndDate" Grid.Row="2" Grid.Column="1" Margin="6"/>
+
+                    <TextBlock Text="Verantwortlicher*" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="CmbOwner" Grid.Row="3" Grid.Column="1" Margin="6"
+                              SelectedValuePath="EmployeeId">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock>
+                                    <Run Text="{Binding LastName}"/><Run Text=", "/><Run Text="{Binding FirstName}"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <StackPanel Grid.RowSpan="4" Grid.Column="2" VerticalAlignment="Center">
+                        <Button x:Name="BtnSaveProject" Style="{StaticResource ToolbarButton}" Width="120"
+                                Click="SaveProject_Click" IsDefault="True">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE74E;"/>
+                                <TextBlock Text="Speichern"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource ToolbarButton}" Width="120" Margin="6,8,0,0"
+                                Click="Close_Click" IsCancel="True">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE711;"/>
+                                <TextBlock Text="Schliessen"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Abstand -->
+            <Border Height="10" Background="Transparent"/>
+
+            <!-- Abschnitt: Phasen erfassen/bearbeiten -->
+            <Border Background="{StaticResource Card}" BorderBrush="#D7DEEA" BorderThickness="1"
+                    CornerRadius="8" Padding="16" >
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Eingabefelder -->
+                    <TextBlock Text="Nummer*" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TxtPhaseNumber" Grid.Row="0" Grid.Column="1" Margin="6" Width="120"/>
+
+                    <TextBlock Text="Phase*" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TxtPhaseTitle" Grid.Row="1" Grid.Column="1" Margin="6"/>
+
+                    <TextBlock Text="Dauer (Std.)*" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TxtPhaseHours" Grid.Row="2" Grid.Column="1" Margin="6" Width="120"/>
+
+                    <TextBlock Text="Vorgaenger" Grid.Row="0" Grid.Column="2" VerticalAlignment="Top" Margin="0,6,0,0"/>
+                    <!-- Mehrfachauswahl der Vorgaenger -->
+                    <ListBox x:Name="ListPredecessors" Grid.RowSpan="3" Grid.Row="0" Grid.Column="3" Margin="6"
+                             SelectionMode="Multiple" Height="110"
+                             DisplayMemberPath="Number"/>
+
+                    <!-- Buttons Phase -->
+                    <StackPanel Grid.Row="3" Grid.ColumnSpan="4" Orientation="Horizontal" HorizontalAlignment="Left" >
+                        <Button x:Name="BtnAddOrUpdatePhase" Style="{StaticResource ToolbarButton}" Width="140"
+                                Click="AddOrUpdatePhase_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE710;"/>
+                                <TextBlock x:Name="LblAddOrUpdate" Text="Hinzufuegen"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="BtnDeletePhase" Style="{StaticResource ToolbarButton}" Width="140"
+                                Click="DeletePhase_Click" IsEnabled="False">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;"/>
+                                <TextBlock Text="Entfernen"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource ToolbarButton}" Width="120"
+                                Click="ClearPhaseFields_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE72C;"/>
+                                <TextBlock Text="Leeren"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Abstand -->
+            <Border Height="10" Background="Transparent"/>
+
+            <!-- Grid mit Phasen -->
+            <Border Background="{StaticResource Card}" BorderBrush="#D7DEEA" BorderThickness="1"
+                    CornerRadius="8" Padding="12" >
+                <DataGrid x:Name="GridPhases" AutoGenerateColumns="False" CanUserAddRows="False"
+                          IsReadOnly="True" SelectionMode="Single"
+                          SelectionChanged="GridPhases_SelectionChanged"
+                          Background="White" BorderBrush="#D7DEEA" RowHeaderWidth="0" >
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Nummer" Binding="{Binding Number}" Width="1.0*"/>
+                        <DataGridTextColumn Header="Phase"   Binding="{Binding Title}"  Width="3.0*"/>
+                        <DataGridTextColumn Header="Dauer"   Binding="{Binding Hours}"  Width="1.0*"/>
+                        <DataGridTextColumn Header="Vorgaenger" Binding="{Binding PredecessorDisplay}" Width="2.0*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
         </StackPanel>
-    </Grid>
+    </DockPanel>
 </Window>
