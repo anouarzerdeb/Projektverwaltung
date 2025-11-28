@@ -1,318 +1,399 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls;     // <— IMPORTANT (fixes Canvas/TextBlock)
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
-using Projektverwaltung.Data;
+using Microsoft.Win32;
 using Projektverwaltung.Models;
 
 namespace Projektverwaltung
 {
     public partial class GanttWindow : Window
     {
-        private readonly Db _db = new Db();
-        private Project _project;
-        private List<Phase> _phases;
+        // ----------------- Layout constants -----------------
+        private const double LeftOffset = 120;   // Abstand links bis zur Zeitachse
+        private const double TopOffset = 25;     // Höhe der Kopfzeile (Zeit)
+        private const double RowHeight = 32;     // Höhe pro Phase
+        private const double CellWidth = 25;     // Breite einer Zeiteinheit
 
-        // Layout
-        const double RowH = 26;
-        const double ColW = 28;
-        const double LeftLabelW = 160;
+        // ----------------- Data -----------------
+        private readonly Project _project;
 
-        readonly Brush[] fills = new[]
-        {
-            (Brush)new SolidColorBrush(Color.FromRgb(0x9E,0xC5,0xE8)),
-            (Brush)new SolidColorBrush(Color.FromRgb(0xF0,0xD6,0x9E)),
-            (Brush)new SolidColorBrush(Color.FromRgb(0xC9,0xE7,0xC8)),
-            (Brush)new SolidColorBrush(Color.FromRgb(0xF2,0xAE,0x73)),
-            (Brush)new SolidColorBrush(Color.FromRgb(0xB9,0xD4,0xF0)),
-            (Brush)new SolidColorBrush(Color.FromRgb(0xF6,0xC5,0xC5))
-        };
+        // Ein (Pastell-)Farbpinsel pro Phase, damit jede Phase stabil die gleiche Farbe hat
+        private readonly Dictionary<int, SolidColorBrush> _phaseColors = new Dictionary<int, SolidColorBrush>();
+        private readonly Random _rand = new Random();
 
         public GanttWindow(Project project)
         {
             InitializeComponent();
+            _project = project ?? throw new ArgumentNullException(nameof(project));
+            Title = "Gantt – " + _project.Name;
 
-            _project = _db.GetProject(project.ProjectId);
-            _phases = _db.GetPhases(_project.ProjectId);
-
-            Draw();
+            DrawGantt();
         }
 
-        private void Draw()
+        // =====================================================
+        // 1. Gantt-Diagramm zeichnen
+        // =====================================================
+        private void DrawGantt()
         {
-            var plan = ComputeSchedule(_phases, _project.StartDate.Date);
+            CanvasChart.Children.Clear();
 
-            int maxDay = plan.Max(p => p.StartOffsetDays + p.DurationDays);
-            int rows = plan.Count;
+            var phases = _project.Phases ?? new List<Phase>();
+            if (phases.Count == 0)
+                return;
 
-            Axis.Children.Clear();
-            Chart.Children.Clear();
-            Labels.Children.Clear();
+            // Sicherheitsmaßnahme: niemals null bei PredecessorIds
+            foreach (var ph in phases)
+                ph.PredecessorIds = ph.PredecessorIds ?? new List<int>();
 
-            Axis.Width = LeftLabelW + maxDay * ColW + 20;
-            Chart.Width = LeftLabelW + maxDay * ColW + 20;
-            Chart.Height = rows * RowH + 10;
+            // 1) Startzeitpunkte aus Abhängigkeiten berechnen
+            var startMap = CalculateStartPositions(phases);
 
-            DrawAxis(maxDay);
-            DrawGrid(rows, maxDay);
+            // Spätester Endzeitpunkt (für die Länge der Zeitachse)
+            int maxEnd = phases
+                .Select(p => startMap[p.PhaseId] + p.Hours)
+                .DefaultIfEmpty(1)
+                .Max();
 
-            // linke Beschriftung
-            for (int i = 0; i < plan.Count; i++)
+            // 2) Canvas-Größe passend setzen
+            CanvasChart.Width = LeftOffset + (maxEnd + 1) * CellWidth + 40;
+            CanvasChart.Height = TopOffset + phases.Count * RowHeight + 40;
+
+            // Schraffur für Pufferzeiten (grau)
+            var hatchBrush = CreateHatchBrush();
+
+            // 3) Zeitachse und vertikales Raster zeichnen
+            DrawTimeAxis(maxEnd, phases.Count);
+
+            // 4) Phasenzeilen zeichnen
+            for (int rowIndex = 0; rowIndex < phases.Count; rowIndex++)
             {
-                var t = new TextBlock
-                {
-                    Text = plan[i].Title,
-                    FontWeight = FontWeights.Bold,
-                    Margin = new Thickness(6, i * RowH + 6, 0, 0)
-                };
-                Canvas.SetLeft(t, 0);
-                Canvas.SetTop(t, i * RowH);
-                Labels.Children.Add(t);
+                var phase = phases[rowIndex];
+                double y = TopOffset + rowIndex * RowHeight + 4;
+
+                int start = startMap[phase.PhaseId];
+                int end = start + phase.Hours;
+                double x = LeftOffset + start * CellWidth;
+
+                // 4.1 Beschriftung links
+                DrawPhaseLabel(phase, y);
+
+                // 4.2 farbigen Balken der Phase zeichnen
+                DrawPhaseBar(phase, x, y, hatchBrush, startMap, phases, end);
             }
+        }
 
-            // Balken
-            for (int i = 0; i < plan.Count; i++)
+        // =====================================================
+        // 2. Startzeiten über Vorgängerbeziehungen berechnen
+        // =====================================================
+        private Dictionary<int, int> CalculateStartPositions(List<Phase> phases)
+        {
+            var start = new Dictionary<int, int>();
+            var byId = phases.ToDictionary(p => p.PhaseId);
+
+            // Alle Phasen starten initial bei 1
+            foreach (var p in phases)
+                start[p.PhaseId] = 1;
+
+            // Einfache Relaxations-Schleife:
+            // eine Phase darf erst starten, wenn alle Vorgänger beendet sind
+            bool changed;
+            int safety = 0;
+
+            do
             {
-                var it = plan[i];
-                double x = it.StartOffsetDays * ColW;
-                double y = i * RowH + 3;
-                double w = Math.Max(ColW * it.DurationDays, 6);
-                double h = RowH - 6;
+                changed = false;
+                safety++;
+                if (safety > 1000) break; // Schutz, falls Daten fehlerhaft sind
 
-                var rect = new Rectangle
+                foreach (var p in phases)
                 {
-                    Width = w,
-                    Height = h,
-                    Fill = fills[i % fills.Length],
-                    Stroke = (Brush)FindResource("StrokeBrush"),
-                    StrokeThickness = 1
-                };
-                Canvas.SetLeft(rect, LeftLabelW + x);
-                Canvas.SetTop(rect, y);
-                Chart.Children.Add(rect);
+                    if (p.PredecessorIds == null || p.PredecessorIds.Count == 0)
+                        continue;
 
-                // stärkerer Rahmen
-                var border = new Rectangle
-                {
-                    Width = w,
-                    Height = h,
-                    Stroke = Brushes.Black,
-                    StrokeThickness = 1,
-                    Fill = Brushes.Transparent
-                };
-                Canvas.SetLeft(border, LeftLabelW + x);
-                Canvas.SetTop(border, y);
-                Chart.Children.Add(border);
+                    int requiredStart = p.PredecessorIds
+                        .Select(id => start[id] + byId[id].Hours) // Ende der Vorgänger
+                        .Max();
 
-                // optionale Schraffur (letztes Drittel)
-                if (it.DurationDays >= 3)
-                {
-                    var hatch = new Rectangle
+                    if (requiredStart > start[p.PhaseId])
                     {
-                        Width = w / 3.0,
-                        Height = h,
-                        Fill = (Brush)FindResource("HatchBrush")
-                    };
-                    Canvas.SetLeft(hatch, LeftLabelW + x + (2.0 / 3.0) * w);
-                    Canvas.SetTop(hatch, y);
-                    Chart.Children.Add(hatch);
+                        start[p.PhaseId] = requiredStart;
+                        changed = true;
+                    }
+                }
+            } while (changed);
+
+            return start;
+        }
+
+        // =====================================================
+        // 3. Puffer (Slack) einer Phase bestimmen
+        //    -> nur das graue Stück bis zum langsamsten Vorgänger
+        // =====================================================
+        private int GetSlackLengthForPhase(
+            Phase phase,
+            List<Phase> allPhases,
+            Dictionary<int, int> startMap)
+        {
+            int slack = 0;
+            int endThis = startMap[phase.PhaseId] + phase.Hours;
+
+            // Alle Nachfolger suchen, bei denen diese Phase Vorgänger ist
+            foreach (var succ in allPhases.Where(p =>
+                         p.PredecessorIds != null &&
+                         p.PredecessorIds.Contains(phase.PhaseId)))
+            {
+                // Alle Vorgänger dieses Nachfolgers
+                var predsOfSucc = allPhases
+                    .Where(p => succ.PredecessorIds.Contains(p.PhaseId))
+                    .ToList();
+
+                // Puffer ist nur interessant, wenn der Nachfolger mehrere Vorgänger hat
+                if (predsOfSucc.Count < 2)
+                    continue;
+
+                int latestEnd = predsOfSucc
+                    .Select(p => startMap[p.PhaseId] + p.Hours)
+                    .Max();
+
+                // Nur wenn diese Phase früher fertig ist als der langsamste Vorgänger
+                if (endThis < latestEnd)
+                {
+                    int candidate = latestEnd - endThis;
+                    if (candidate > slack)
+                        slack = candidate;
                 }
             }
 
-            LblInfo.Text = $"{_project.Name} • {plan.Count} Phasen • Zeitachse: 1..{maxDay} Tage";
+            return slack;
         }
 
-        private void DrawAxis(int maxDay)
+        // =====================================================
+        // 4. Zeitachse und Raster
+        // =====================================================
+        private void DrawTimeAxis(int maxEnd, int rowCount)
         {
-            var axisRect = new Rectangle
-            {
-                Width = LeftLabelW + maxDay * ColW,
-                Height = 24,
-                Fill = Brushes.White,
-                Stroke = (Brush)FindResource("GridBrush"),
-                StrokeThickness = 1
-            };
-            Canvas.SetLeft(axisRect, 0);
-            Canvas.SetTop(axisRect, 0);
-            Axis.Children.Add(axisRect);
-
+            // "Zeit" links über den Phasen
             var lblZeit = new TextBlock
             {
                 Text = "Zeit",
-                Foreground = (Brush)FindResource("AxisBrush"),
-                Margin = new Thickness(6, 3, 0, 0),
                 FontWeight = FontWeights.Bold
             };
-            Canvas.SetLeft(lblZeit, 0);
+            Canvas.SetLeft(lblZeit, 10);
             Canvas.SetTop(lblZeit, 2);
-            Axis.Children.Add(lblZeit);
+            CanvasChart.Children.Add(lblZeit);
 
-            for (int d = 1; d <= maxDay; d++)
+            // Zahlen 1..maxEnd und vertikale Linien
+            for (int t = 1; t <= maxEnd; t++)
             {
-                var t = new TextBlock
+                double x = LeftOffset + t * CellWidth;
+
+                var txt = new TextBlock
                 {
-                    Text = d.ToString(),
-                    Foreground = (Brush)FindResource("AxisBrush"),
+                    Text = t.ToString(),
                     FontSize = 11
                 };
-                Canvas.SetLeft(t, LeftLabelW + (d - 1) * ColW + 8);
-                Canvas.SetTop(t, 4);
-                Axis.Children.Add(t);
-            }
-        }
+                Canvas.SetLeft(txt, x - 4);
+                Canvas.SetTop(txt, 2);
+                CanvasChart.Children.Add(txt);
 
-        private void DrawGrid(int rows, int maxDay)
-        {
-            for (int d = 0; d <= maxDay; d++)
-            {
-                var v = new Rectangle { Width = 1, Height = rows * RowH, Fill = (Brush)FindResource("GridBrush") };
-                Canvas.SetLeft(v, LeftLabelW + d * ColW);
-                Canvas.SetTop(v, 0);
-                Chart.Children.Add(v);
-            }
-
-            for (int r = 0; r <= rows; r++)
-            {
-                var h = new Rectangle { Width = maxDay * ColW, Height = 1, Fill = (Brush)FindResource("GridBrush") };
-                Canvas.SetLeft(h, LeftLabelW);
-                Canvas.SetTop(h, r * RowH);
-                Chart.Children.Add(h);
-            }
-        }
-
-        private List<Item> ComputeSchedule(List<Phase> phases, DateTime projectStart)
-        {
-            int Days(int hours) => Math.Max(1, (int)Math.Ceiling(hours / 8.0));
-
-            // Topological order (Kahn)
-            var indeg = phases.ToDictionary(p => p.PhaseId, _ => 0);
-            foreach (var p in phases)
-                foreach (var pr in p.PredecessorIds ?? new List<int>())
-                    indeg[p.PhaseId]++;
-
-            var q = new Queue<Phase>(phases.Where(p => indeg[p.PhaseId] == 0).OrderBy(p => p.Number));
-            var order = new List<Phase>();
-            while (q.Count > 0)
-            {
-                var n = q.Dequeue();
-                order.Add(n);
-                foreach (var m in phases.Where(x => (x.PredecessorIds ?? new List<int>()).Contains(n.PhaseId)))
+                var gridLine = new Line
                 {
-                    indeg[m.PhaseId]--;
-                    if (indeg[m.PhaseId] == 0) q.Enqueue(m);
-                }
+                    X1 = x,
+                    Y1 = TopOffset,
+                    X2 = x,
+                    Y2 = TopOffset + rowCount * RowHeight,
+                    Stroke = new SolidColorBrush(Color.FromRgb(230, 234, 242)),
+                    StrokeThickness = 1
+                };
+                CanvasChart.Children.Add(gridLine);
             }
-            if (order.Count != phases.Count)
-                order = phases.OrderBy(p => p.Number).ToList();
-
-            var result = new List<Item>();
-            var endById = new Dictionary<int, int>();
-
-            foreach (var p in order)
-            {
-                int start = 0;
-                if (p.PredecessorIds != null && p.PredecessorIds.Count > 0)
-                    start = p.PredecessorIds.Where(endById.ContainsKey).Select(id => endById[id]).DefaultIfEmpty(0).Max();
-
-                int dur = Days(p.Hours);
-                int end = start + dur;
-                endById[p.PhaseId] = end;
-
-                result.Add(new Item
-                {
-                    PhaseId = p.PhaseId,
-                    Number = p.Number,
-                    Title = p.Title,
-                    DurationDays = dur,
-                    StartOffsetDays = start
-                });
-            }
-
-            return result.OrderBy(i => i.Number).ToList();
         }
 
-        private void ExportPng_Click(object sender, RoutedEventArgs e)
+        // =====================================================
+        // 5. Phasenzeile: Text, farbiger Balken, ggf. Puffer
+        // =====================================================
+
+        private void DrawPhaseLabel(Phase phase, double y)
         {
-            var dlg = new Microsoft.Win32.SaveFileDialog
+            var lbl = new TextBlock
             {
-                Filter = "PNG (*.png)|*.png",
-                FileName = $"Gantt_{_project.Name}.png"
+                Text = phase.Title,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            if (dlg.ShowDialog() != true) return;
+            Canvas.SetLeft(lbl, 10);
+            Canvas.SetTop(lbl, y + 2);
+            CanvasChart.Children.Add(lbl);
+        }
 
-            double width = Chart.Width;
-            double height = Chart.Height + Axis.Height;
+        private void DrawPhaseBar(
+            Phase phase,
+            double x,
+            double y,
+            Brush hatchBrush,
+            Dictionary<int, int> startMap,
+            List<Phase> allPhases,
+            int end)
+        {
+            // Farbe für diese Phase holen/erzeugen
+            SolidColorBrush fill = GetPhaseBrush(phase);
+            SolidColorBrush stroke = GetStrokeFromFill(fill);
+
+            // farbiger Balken
+            var rect = new Rectangle
+            {
+                Width = phase.Hours * CellWidth,
+                Height = RowHeight - 6,
+                RadiusX = 4,
+                RadiusY = 4,
+                Fill = fill,
+                Stroke = stroke,
+                StrokeThickness = 1
+            };
+            Canvas.SetLeft(rect, x);
+            Canvas.SetTop(rect, y);
+            CanvasChart.Children.Add(rect);
+
+            // grauer Puffer, falls vorhanden
+            int slackLen = GetSlackLengthForPhase(phase, allPhases, startMap);
+            if (slackLen <= 0)
+                return;
+
+            double slackX = LeftOffset + end * CellWidth;
+
+            var slackRect = new Rectangle
+            {
+                Width = slackLen * CellWidth,
+                Height = RowHeight - 6,
+                RadiusX = 4,
+                RadiusY = 4,
+                Fill = hatchBrush,
+                Stroke = Brushes.Gray,
+                StrokeThickness = 1
+            };
+
+            Canvas.SetLeft(slackRect, slackX);
+            Canvas.SetTop(slackRect, y);
+            CanvasChart.Children.Add(slackRect);
+        }
+
+        // Zufällige Pastellfarbe pro Phase, aber stabil (wird gemerkt)
+        private SolidColorBrush GetPhaseBrush(Phase phase)
+        {
+            if (_phaseColors.TryGetValue(phase.PhaseId, out var brush))
+                return brush;
+
+            byte r = (byte)_rand.Next(140, 220);
+            byte g = (byte)_rand.Next(140, 220);
+            byte b = (byte)_rand.Next(140, 220);
+
+            brush = new SolidColorBrush(Color.FromArgb(190, r, g, b));
+            _phaseColors[phase.PhaseId] = brush;
+            return brush;
+        }
+
+        // aus der Füllfarbe einen etwas dunkleren Rahmen ableiten
+        private SolidColorBrush GetStrokeFromFill(SolidColorBrush fill)
+        {
+            Color c = fill.Color;
+            byte dr = (byte)Math.Max(0, c.R - 40);
+            byte dg = (byte)Math.Max(0, c.G - 40);
+            byte db = (byte)Math.Max(0, c.B - 40);
+            return new SolidColorBrush(Color.FromRgb(dr, dg, db));
+        }
+
+        // =====================================================
+        // 6. Schraffur-Pinsel für grauen Puffer
+        // =====================================================
+        private Brush CreateHatchBrush()
+        {
+            var geo = new GeometryGroup();
+            geo.Children.Add(new LineGeometry(new Point(0, 4), new Point(4, 0)));
+
+            var drawing = new GeometryDrawing
+            {
+                Pen = new Pen(Brushes.Gray, 1),
+                Geometry = geo
+            };
+
+            return new DrawingBrush(drawing)
+            {
+                TileMode = TileMode.Tile,
+                Viewport = new Rect(0, 0, 4, 4),
+                ViewportUnits = BrushMappingMode.Absolute,
+                Viewbox = new Rect(0, 0, 4, 4),
+                ViewboxUnits = BrushMappingMode.Absolute
+            };
+        }
+
+        // =====================================================
+        // 7. Export als PNG (Export-Button im XAML)
+        // =====================================================
+        private void Export_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SaveFileDialog
+            {
+                Filter = "PNG-Bild|*.png",
+                FileName = "Gantt_" + _project.Name + ".png"
+            };
+
+            if (dlg.ShowDialog() != true)
+                return;
+
+            // 1) Größe der Canvas ermitteln
+            double width = double.IsNaN(CanvasChart.ActualWidth) || CanvasChart.ActualWidth <= 0
+                ? CanvasChart.Width
+                : CanvasChart.ActualWidth;
+
+            double height = double.IsNaN(CanvasChart.ActualHeight) || CanvasChart.ActualHeight <= 0
+                ? CanvasChart.Height
+                : CanvasChart.ActualHeight;
+
+            if (width <= 0 || height <= 0)
+            {
+                MessageBox.Show("Diagramm hat keine gültige Größe zum Exportieren.",
+                                "Export", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            CanvasChart.Measure(new Size(width, height));
+            CanvasChart.Arrange(new Rect(0, 0, width, height));
+            CanvasChart.UpdateLayout();
+
+            int pixelWidth = (int)Math.Ceiling(width);
+            int pixelHeight = (int)Math.Ceiling(height);
+
+            // 2) Weißer Hintergrund + Canvas in ein RenderTargetBitmap zeichnen
+            var rtb = new RenderTargetBitmap(
+                pixelWidth,
+                pixelHeight,
+                96, 96,
+                PixelFormats.Pbgra32);
 
             var dv = new DrawingVisual();
             using (var dc = dv.RenderOpen())
             {
-                dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, LeftLabelW + width, height + 40));
-
-                // Axis
-                var axisBmp = RenderElement(Axis);
-                dc.DrawImage(axisBmp, new Rect(LeftLabelW, 0, Axis.Width, Axis.Height));
-
-                // Labels
-                foreach (UIElement child in Labels.Children)
-                {
-                    if (child is TextBlock tb)
-                    {
-                        var p = new Point(Canvas.GetLeft(tb), Canvas.GetTop(tb) + 40);
-                        var ft = new FormattedText(
-                            tb.Text,
-                            System.Globalization.CultureInfo.CurrentCulture,
-                            FlowDirection.LeftToRight,
-                            new Typeface("Segoe UI"), 12, Brushes.Black, 1.25);
-                        dc.DrawText(ft, p + new Vector(6, 6));
-                    }
-                }
-
-                // Chart
-                var chartBmp = RenderElement(Chart);
-                dc.DrawImage(chartBmp, new Rect(0, 40, LeftLabelW + chartBmp.Width, chartBmp.Height));
+                dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, width, height));
+                var vb = new VisualBrush(CanvasChart);
+                dc.DrawRectangle(vb, null, new Rect(0, 0, width, height));
             }
-
-            var rtb = new RenderTargetBitmap(
-                (int)Math.Ceiling(LeftLabelW + width),
-                (int)Math.Ceiling(height + 40),
-                96, 96, PixelFormats.Pbgra32);
             rtb.Render(dv);
 
-            using (var fs = File.OpenWrite(dlg.FileName))
+            // 3) Als PNG speichern
+            var png = new PngBitmapEncoder();
+            png.Frames.Add(BitmapFrame.Create(rtb));
+
+            using (var stream = System.IO.File.Create(dlg.FileName))
             {
-                var enc = new PngBitmapEncoder();
-                enc.Frames.Add(BitmapFrame.Create(rtb));
-                enc.Save(fs);
+                png.Save(stream);
             }
 
-            MessageBox.Show("PNG exportiert.", "Info",
+            MessageBox.Show("Gantt-Diagramm wurde exportiert.", "Export",
                 MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private BitmapSource RenderElement(FrameworkElement fe)
-        {
-            fe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            fe.Arrange(new Rect(fe.DesiredSize));
-            var rtb = new RenderTargetBitmap(
-                (int)Math.Ceiling(fe.ActualWidth > 0 ? fe.ActualWidth : fe.DesiredSize.Width),
-                (int)Math.Ceiling(fe.ActualHeight > 0 ? fe.ActualHeight : fe.DesiredSize.Height),
-                96, 96, PixelFormats.Pbgra32);
-            rtb.Render(fe);
-            return rtb;
-        }
-
-        private class Item
-        {
-            public int PhaseId { get; set; }
-            public string Number { get; set; }
-            public string Title { get; set; }
-            public int DurationDays { get; set; }
-            public int StartOffsetDays { get; set; }
         }
     }
 }
