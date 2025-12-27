@@ -15,6 +15,8 @@ namespace Projektverwaltung
         private Project _project;                     // aktuelles Projekt (neu/geladen)
         private Phase _phaseEditing;                  // null = add, sonst update
         private ObservableCollection<PhaseRow> _rows; // Anzeige im Grid
+        private bool _savedOnce = false;
+
 
         public ProjectForm()
         {
@@ -53,6 +55,7 @@ namespace Projektverwaltung
 
             TogglePhaseSection(true);
             LoadPhases();
+            _savedOnce = true;
             MessageBox.Show("Projekt gespeichert.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
@@ -149,6 +152,7 @@ namespace Projektverwaltung
                     hours: hours,
                     predecessorIds: predecessors);
 
+                _savedOnce = true;
                 LoadPhases(); // neu laden für konsistente Anzeige
             }
             catch (Exception ex)
@@ -195,6 +199,7 @@ namespace Projektverwaltung
             if (r != MessageBoxResult.Yes) return;
 
             _db.DeletePhase(row.PhaseId);
+            _savedOnce = true;
             LoadPhases();
         }
 
@@ -216,7 +221,11 @@ namespace Projektverwaltung
                 ListPredecessors.ItemsSource = _project.Phases.OrderBy(p => p.Number).ToList();
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e) => Close();
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = _savedOnce;  // true nur wenn mindestens einmal gespeichert
+            Close();
+        }
     }
 
     /* ---------- Hilfs-Klasse für DataGrid ---------- */

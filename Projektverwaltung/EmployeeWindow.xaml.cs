@@ -37,18 +37,16 @@ namespace Projektverwaltung
 
         private void NewEmployee_Click(object sender, RoutedEventArgs e)
         {
-            var f = new EmployeeForm();             // empty form = create
-            f.Owner = this;
-            f.ShowDialog();
+            var f = new EmployeeForm { Owner = this };
+            if (f.ShowDialog() == true)
             LoadEmployees();
         }
 
         private void EditEmployee_Click(object sender, RoutedEventArgs e)
         {
             if (_selected == null) return;
-            var f = new EmployeeForm(_selected);    // pre-filled = update
-            f.Owner = this;
-            f.ShowDialog();
+            var f = new EmployeeForm(_selected) { Owner = this };
+            if (f.ShowDialog() == true)
             LoadEmployees();
         }
 

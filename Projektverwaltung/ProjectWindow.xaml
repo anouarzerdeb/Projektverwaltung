@@ -72,7 +72,7 @@
                     <TextBlock Text="Löschen" FontSize="18"/>
                 </StackPanel>
             </Button>
-            <Button Style="{StaticResource ToolbarButton}" Width="160" Name="BtnGantt" IsEnabled="False" Click="ShowGantt_Click">
+            <Button Style="{StaticResource ToolbarButton}" Width="188" Name="BtnGantt" IsEnabled="False" Click="ShowGantt_Click">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource Glyph}" Text="&#xE9D2;"/>
                     <TextBlock Text="Gantt-Diagramm" FontSize="18"/>

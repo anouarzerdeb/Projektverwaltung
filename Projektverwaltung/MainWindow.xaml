@@ -70,8 +70,7 @@
                             <TextBlock Text="Projekte" FontSize="18"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource PrimaryIconButton}" Background="{StaticResource AccentBrush}"
-                  Click="BtnEmployees_Click" Height="60" Width="190">
+                    <Button Style="{StaticResource PrimaryIconButton}" Background="{StaticResource AccentBrush}" Click="BtnEmployees_Click" Height="60" Width="190">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource Glyph}" Text="&#xE77B;"/>
                             <TextBlock Text="Mitarbeiter" FontSize="18"/>

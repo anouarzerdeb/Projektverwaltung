@@ -86,15 +86,15 @@
 
                 <!-- Button-Leiste (gleiches Design wie in EmployeeWindow) -->
                 <StackPanel Grid.Row="6"
-                            Orientation="Horizontal" HorizontalAlignment="Left" Margin="99,0,0,0" Grid.Column="1" Width="259">
-                    <Button Style="{StaticResource ToolbarButton}" Width="120" Click="Cancel_Click" IsCancel="True">
+                            Orientation="Horizontal" HorizontalAlignment="Left" Margin="68,0,0,0" Grid.Column="1" Width="290">
+                    <Button Style="{StaticResource ToolbarButton}" Width="130" Click="Cancel_Click" IsCancel="True">
                         <StackPanel Orientation="Horizontal">
                             <!-- close glyph -->
                             <TextBlock Style="{StaticResource Glyph}" Text="&#xE711;"/>
                             <TextBlock Text="Abbrechen" FontSize="16"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource ToolbarButton}" Width="120" Click="SaveEmployee_Click" IsDefault="True">
+                    <Button Style="{StaticResource ToolbarButton}" Width="130" Click="SaveEmployee_Click" IsDefault="True">
                         <StackPanel Orientation="Horizontal">
                             <!-- save glyph -->
                             <TextBlock Style="{StaticResource Glyph}" Text="&#xE74E;"/>

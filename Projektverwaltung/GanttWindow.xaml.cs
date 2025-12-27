@@ -116,7 +116,9 @@ namespace Projektverwaltung
                         continue;
 
                     int requiredStart = p.PredecessorIds
-                        .Select(id => start[id] + byId[id].Hours) // Ende der Vorgänger
+                        .Where(id => byId.ContainsKey(id))
+                        .Select(id => start[id] + byId[id].Hours)
+                        .DefaultIfEmpty(1)
                         .Max();
 
                     if (requiredStart > start[p.PhaseId])
@@ -177,7 +179,7 @@ namespace Projektverwaltung
         // =====================================================
         private void DrawTimeAxis(int maxEnd, int rowCount)
         {
-            // "Zeit" links über den Phasen
+            // "Zeit" label
             var lblZeit = new TextBlock
             {
                 Text = "Zeit",
@@ -187,25 +189,33 @@ namespace Projektverwaltung
             Canvas.SetTop(lblZeit, 2);
             CanvasChart.Children.Add(lblZeit);
 
-            // Zahlen 1..maxEnd und vertikale Linien
             for (int t = 1; t <= maxEnd; t++)
             {
-                double x = LeftOffset + t * CellWidth;
-
-                var txt = new TextBlock
+                // Zahl NICHT für das letzte t zeichnen
+                if (t < maxEnd)
                 {
-                    Text = t.ToString(),
-                    FontSize = 11
-                };
-                Canvas.SetLeft(txt, x - 4);
-                Canvas.SetTop(txt, 2);
-                CanvasChart.Children.Add(txt);
+                    double labelLeft = LeftOffset + (t * CellWidth);
 
+                    var txt = new TextBlock
+                    {
+                        Text = t.ToString(),
+                        FontSize = 11,
+                        Width = CellWidth,
+                        TextAlignment = TextAlignment.Center
+                    };
+
+                    Canvas.SetLeft(txt, labelLeft);
+                    Canvas.SetTop(txt, 2);
+                    CanvasChart.Children.Add(txt);
+                }
+
+                // Gitterlinie weiterhin bis maxEnd zeichnen
+                double lineX = LeftOffset + t * CellWidth;
                 var gridLine = new Line
                 {
-                    X1 = x,
+                    X1 = lineX,
                     Y1 = TopOffset,
-                    X2 = x,
+                    X2 = lineX,
                     Y2 = TopOffset + rowCount * RowHeight,
                     Stroke = new SolidColorBrush(Color.FromRgb(230, 234, 242)),
                     StrokeThickness = 1
@@ -213,6 +223,7 @@ namespace Projektverwaltung
                 CanvasChart.Children.Add(gridLine);
             }
         }
+
 
         // =====================================================
         // 5. Phasenzeile: Text, farbiger Balken, ggf. Puffer
@@ -223,10 +234,21 @@ namespace Projektverwaltung
             var lbl = new TextBlock
             {
                 Text = phase.Title,
-                VerticalAlignment = VerticalAlignment.Center
+
+                // Wichtig: Label bleibt in der linken Spalte
+                Width = LeftOffset - 10,                 // 10px links + 10px Luft
+                TextTrimming = TextTrimming.CharacterEllipsis,
+
+                // Optional: volle Bezeichnung beim Hover
+                ToolTip = phase.Title,
+
+                // Optional: überdeckt die Grid-Linien dahinter
+                Background = Brushes.White
             };
+
             Canvas.SetLeft(lbl, 10);
             Canvas.SetTop(lbl, y + 2);
+            Panel.SetZIndex(lbl, 10); // sicher über dem Raster
             CanvasChart.Children.Add(lbl);
         }
 
@@ -248,8 +270,6 @@ namespace Projektverwaltung
             {
                 Width = phase.Hours * CellWidth,
                 Height = RowHeight - 6,
-                RadiusX = 4,
-                RadiusY = 4,
                 Fill = fill,
                 Stroke = stroke,
                 StrokeThickness = 1
@@ -269,8 +289,6 @@ namespace Projektverwaltung
             {
                 Width = slackLen * CellWidth,
                 Height = RowHeight - 6,
-                RadiusX = 4,
-                RadiusY = 4,
                 Fill = hatchBrush,
                 Stroke = Brushes.Gray,
                 StrokeThickness = 1
@@ -287,11 +305,12 @@ namespace Projektverwaltung
             if (_phaseColors.TryGetValue(phase.PhaseId, out var brush))
                 return brush;
 
-            byte r = (byte)_rand.Next(140, 220);
-            byte g = (byte)_rand.Next(140, 220);
-            byte b = (byte)_rand.Next(140, 220);
+            var r = new Random(phase.PhaseId * 7919); // einfacher Seed
+            byte rr = (byte)r.Next(140, 220);
+            byte gg = (byte)r.Next(140, 220);
+            byte bb = (byte)r.Next(140, 220);
 
-            brush = new SolidColorBrush(Color.FromArgb(190, r, g, b));
+            brush = new SolidColorBrush(Color.FromRgb(rr, gg, bb));
             _phaseColors[phase.PhaseId] = brush;
             return brush;
         }
@@ -311,24 +330,35 @@ namespace Projektverwaltung
         // =====================================================
         private Brush CreateHatchBrush()
         {
-            var geo = new GeometryGroup();
-            geo.Children.Add(new LineGeometry(new Point(0, 4), new Point(4, 0)));
-
-            var drawing = new GeometryDrawing
+            // Background fill (solid, not transparent)
+            var bg = new GeometryDrawing
             {
-                Pen = new Pen(Brushes.Gray, 1),
-                Geometry = geo
+                Brush = new SolidColorBrush(Color.FromRgb(230, 230, 230)), // light gray
+                Geometry = new RectangleGeometry(new Rect(0, 0, 6, 6))
             };
 
-            return new DrawingBrush(drawing)
+            // Diagonal hatch line
+            var line = new GeometryDrawing
+            {
+                Pen = new Pen(new SolidColorBrush(Color.FromRgb(140, 140, 140)), 1),
+                Geometry = new LineGeometry(new Point(0, 6), new Point(6, 0))
+            };
+
+            var group = new DrawingGroup();
+            group.Children.Add(bg);
+            group.Children.Add(line);
+
+            return new DrawingBrush(group)
             {
                 TileMode = TileMode.Tile,
-                Viewport = new Rect(0, 0, 4, 4),
+                Viewport = new Rect(0, 0, 6, 6),
                 ViewportUnits = BrushMappingMode.Absolute,
-                Viewbox = new Rect(0, 0, 4, 4),
-                ViewboxUnits = BrushMappingMode.Absolute
+                Viewbox = new Rect(0, 0, 6, 6),
+                ViewboxUnits = BrushMappingMode.Absolute,
+                Stretch = Stretch.None
             };
         }
+
 
         // =====================================================
         // 7. Export als PNG (Export-Button im XAML)

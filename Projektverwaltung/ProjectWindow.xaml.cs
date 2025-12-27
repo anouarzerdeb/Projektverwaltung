@@ -14,6 +14,7 @@ namespace Projektverwaltung
         {
             InitializeComponent();
             LoadProjects();
+
         }
 
         private void LoadProjects()
@@ -37,18 +38,16 @@ namespace Projektverwaltung
 
         private void NewProject_Click(object sender, RoutedEventArgs e)
         {
-            var f = new ProjectForm();
-            f.Owner = this;
-            f.ShowDialog();
+            var f = new ProjectForm { Owner = this };
+            if (f.ShowDialog() == true)
             LoadProjects();
         }
 
         private void EditProject_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedProject == null) return;
-            var f = new ProjectForm(_selectedProject);
-            f.Owner = this;
-            f.ShowDialog();
+            var f = new ProjectForm(_selectedProject) { Owner = this };
+            if (f.ShowDialog() == true)
             LoadProjects();
         }
 
@@ -70,7 +69,11 @@ namespace Projektverwaltung
         private void ShowGantt_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedProject == null) return;
-            var gantt = new GanttWindow(_selectedProject);
+
+            // Immer frisch laden (inkl. Phasen + Dependencies)
+            var freshProject = _db.GetProject(_selectedProject.ProjectId);
+
+            var gantt = new GanttWindow(freshProject);
             gantt.Owner = this;
             gantt.Show();
         }
