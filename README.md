@@ -1,61 +1,47 @@
-# Projektverwaltung (WPF) – Project Manager with Gantt Diagram
+## SQL-Datenbank in Visual Studio (SQL Server Object Explorer) einrichten
 
-A WPF desktop application to manage **Employees**, **Projects**, and **Project Phases** with **dependencies** and a generated **Gantt diagram** (including optional slack/buffer visualization). The Gantt chart can be **exported as PNG**.
-
----
-
-## Features
-
-### Employees
-- List employees (read-only grid)
-- Create / edit / delete employees
-- Delete protection: cannot delete an employee if they are assigned as a project owner
-
-### Projects & Phases
-- Create / edit / delete projects
-- Each project has: name, start/end date, responsible employee (owner)
-- Manage phases inside a project:
-  - Phase number (unique per project)
-  - Title
-  - Duration in hours
-  - Multiple predecessors (dependencies)
-
-### Gantt Diagram
-- Draws phases as bars on a timeline
-- Calculates phase start times based on predecessor relations
-- Shows slack/buffer (hatched gray segments) when a successor has multiple predecessors
-- Export the complete diagram to **PNG**
+Diese Anleitung zeigt, wie die Datenbank **ProjectManagerDb** direkt in **Visual Studio** über den **SQL Server Object Explorer** erstellt wird – **ohne SSMS**.  
+Die Datenbank wird dabei komplett über das SQL-Skript angelegt.
 
 ---
 
-## Tech Stack
-- .NET (WPF)
-- SQL Server (LocalDB / Express / full SQL Server)
-- ADO.NET (`SqlConnection`, `SqlCommand`)
-- Newtonsoft.Json (included in project references)
+### 1) SQL Server Object Explorer öffnen
+1. **Visual Studio** öffnen  
+2. Menü: **View → SQL Server Object Explorer**
+
+Falls es nicht sichtbar ist:
+- Prüfen, ob die Workload **“.NET-Desktopentwicklung”** installiert ist
+- Falls SQL-Tools fehlen: **Visual Studio Installer → Modify → Individual components → SQL Server Data Tools (SSDT)** installieren
 
 ---
 
-## Prerequisites
-
-### Software
-- **Visual Studio 2019/2022** (recommended) with:
-  - “.NET desktop development” workload (WPF)
-- **SQL Server** (choose one):
-  - SQL Server LocalDB (often installed with Visual Studio)
-  - SQL Server Express
-  - Full SQL Server instance
-
-### Optional
-- SQL Server Management Studio (SSMS) to run SQL scripts easily
+### 2) Mit einer SQL-Instanz verbinden (LocalDB)
+1. Im **SQL Server Object Explorer**: Rechtsklick auf **SQL Server** → **Add SQL Server**
+2. Bei **Server name** eintragen:  
+   `(localdb)\MSSQLLocalDB`
+3. **Authentication**: **Windows Authentication**
+4. **Connect** klicken
 
 ---
 
-## Database Setup
+### 3) Neue Query erstellen
+1. Im SQL Server Object Explorer den verbundenen Server aufklappen (z. B. **(localdb)\MSSQLLocalDB**)
+2. Rechtsklick auf die Verbindung (den Server) → **New Query**
 
-1) Open SSMS (or any SQL tool connected to your server).
+> Tipp: Falls „New Query“ nicht direkt am Server erscheint, funktioniert es auch über:  
+> **Rechtsklick auf Databases → New Query** (je nach Visual-Studio-Version)
 
-2) Run the following SQL script to create the database and tables:
+---
+
+### 4) SQL-Skript einfügen und ausführen
+1. In das geöffnete Query-Fenster das komplette SQL-Skript einfügen (inkl. `CREATE DATABASE ProjectManagerDb;`)
+2. Ausführen mit:
+   - Button **Execute** (oben im Query-Fenster)  
+   **oder**
+   - Tastenkombination **Strg + Shift + E**
+
+Wenn alles korrekt ist, erscheint unten eine Erfolgsmeldung wie:
+- **Command(s) completed successfully.**
 
 ```sql
 CREATE DATABASE ProjectManagerDb;
@@ -106,10 +92,10 @@ ALTER TABLE Phases
 ADD CONSTRAINT FK_Phases_Projects
     FOREIGN KEY (ProjectId)
     REFERENCES Projects(ProjectId)
-    ON DELETE CASCADE; -- deleting a project deletes its phases
+    ON DELETE CASCADE;
 GO
 
--- Unique phase number per project
+-- Nummer eindeutig pro Projekt
 CREATE UNIQUE INDEX UX_Phases_Project_Number
 ON Phases(ProjectId, [Number]);
 GO
@@ -134,3 +120,26 @@ ADD CONSTRAINT FK_PhaseDependencies_Phases_Predecessor
     FOREIGN KEY (PredecessorPhaseId)
     REFERENCES Phases(PhaseId);
 GO
+```
+---
+
+### 5) Tabellen anzeigen (Refresh)
+1. Im SQL Server Object Explorer:
+   - Server → **Databases** → **ProjectManagerDb** → **Tables**
+2. Wenn die Tabellen nicht sofort sichtbar sind:
+   - Rechtsklick auf **Tables** → **Refresh**
+   - ggf. auch Rechtsklick auf **ProjectManagerDb** → **Refresh**
+
+Danach sollten diese Tabellen sichtbar sein:
+- `Employees`
+- `Projects`
+- `Phases`
+- `PhaseDependencies`
+
+---
+
+### 6) Optional: Kurzer Funktionstest
+Im Query-Fenster kann man z. B. testen:
+```sql
+USE ProjectManagerDb;
+SELECT * FROM Employees;
