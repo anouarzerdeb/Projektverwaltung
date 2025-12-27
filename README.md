@@ -255,3 +255,33 @@ FROM @P2_Phases e, @P2_Phases f
 WHERE e.[Number] = 'E' AND f.[Number] = 'F';
 GO
 
+```
+
+## 7) Projekt starten (Visual Studio)
+
+1. Lösung (`.sln`) in **Visual Studio** öffnen  
+2. Falls nötig: NuGet-Pakete automatisch wiederherstellen lassen  
+3. Das Projekt **Projektverwaltung** als Startprojekt setzen:
+   - Rechtsklick auf Projekt → **Set as Startup Project**
+4. Starten mit:
+   - **F5** (mit Debugging) oder **Strg + F5** (ohne Debugging)
+
+---
+
+## 8) Connection String prüfen (App.config)
+
+Die Anwendung verbindet sich über folgenden Eintrag:
+`ConfigurationManager.ConnectionStrings["Default"]`
+
+In der Datei **App.config** muss ein Connection String mit dem Namen **Default** vorhanden sein.
+
+Beispiel für **LocalDB**:
+
+```xml
+<configuration>
+  <connectionStrings>
+    <add name="Default"
+         connectionString="Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=ProjectManagerDb;Integrated Security=True;TrustServerCertificate=True"
+         providerName="System.Data.SqlClient" />
+  </connectionStrings>
+</configuration>
